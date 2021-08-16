@@ -152,3 +152,24 @@ def data_shape(X: modALinput):
         return np.array(X).shape
 
     raise TypeError('%s datatype is not supported' % type(X))
+
+def data2matrix(blocks: Sequence[modALinput]) -> modALinput:
+    """
+    Adds the new data to a sparse matrix
+
+    Args:
+        blocks: Sequence of modALinput objects.
+
+    Returns:
+        New sequence of vertically stacked elements.
+    """
+    if any([sp.issparse(b) for b in blocks]):
+        return sp.vstack(blocks)
+    elif isinstance(blocks[0], pd.DataFrame):
+        return blocks[0].append(blocks[1:])
+    elif isinstance(blocks[0], np.ndarray):
+        return np.concatenate(blocks)
+    elif isinstance(blocks[0], list):
+        return np.concatenate(blocks).tolist()
+
+    raise TypeError('%s datatype is not supported' % type(blocks[0]))

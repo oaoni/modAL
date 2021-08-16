@@ -542,7 +542,7 @@ class CommitteeRegressor(BaseCommittee):
 
         return prediction
 
-class ActiveCompletion(BaseLearner):
+class ActiveCompletion(BaseTransformer):
     """
     This class is an abstract model of a general active learning algorithm for matrix completion.
 
@@ -565,51 +565,26 @@ class ActiveCompletion(BaseLearner):
 
     Examples:
 
-        >>> from sklearn.datasets import load_iris
-        >>> from sklearn.ensemble import RandomForestClassifier
-        >>> from modAL.models import ActiveLearner
-        >>> iris = load_iris()
-        >>> # give initial training examples
-        >>> X_training = iris['data'][[0, 50, 100]]
-        >>> y_training = iris['target'][[0, 50, 100]]
-        >>>
-        >>> # initialize active learner
-        >>> learner = ActiveLearner(
-        ...     estimator=RandomForestClassifier(),
-        ...     X_training=X_training, y_training=y_training
-        ... )
-        >>>
-        >>> # querying for labels
-        >>> query_idx, query_sample = learner.query(iris['data'])
-        >>>
-        >>> # ...obtaining new labels from the Oracle...
-        >>>
-        >>> # teaching newly labelled examples
-        >>> learner.teach(
-        ...     X=iris['data'][query_idx].reshape(1, -1),
-        ...     y=iris['target'][query_idx].reshape(1, )
-        ... )
+    unsupervised activing learning problem
     """
 
     def __init__(self,
                  estimator: BaseEstimator,
                  query_strategy: Callable = uncertainty_sampling,
                  X_training: Optional[modALinput] = None,
-                 y_training: Optional[modALinput] = None,
                  bootstrap_init: bool = False,
                  on_transformed: bool = False,
                  **fit_kwargs
                  ) -> None:
         super().__init__(estimator, query_strategy,
-                         X_training, y_training, bootstrap_init, on_transformed, **fit_kwargs)
+                         X_training, bootstrap_init, on_transformed, **fit_kwargs)
 
-    def teach(self, X: modALinput, y: modALinput, bootstrap: bool = False, only_new: bool = False, **fit_kwargs) -> None:
+    def teach(self, X: modALinput, bootstrap: bool = False, only_new: bool = False, **fit_kwargs) -> None:
         """
-        Adds X and y to the known training data and retrains the predictor with the augmented dataset.
+        Adds X to the known training data and retrains the predictor with the augmented dataset.
 
         Args:
             X: The new samples for which the labels are supplied by the expert.
-            y: Labels corresponding to the new instances in X.
             bootstrap: If True, training is done on a bootstrapped dataset. Useful for building Committee models
                 with bagging.
             only_new: If True, the model is retrained using only X and y, ignoring the previously provided examples.
