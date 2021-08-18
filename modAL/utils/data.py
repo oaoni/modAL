@@ -153,23 +153,43 @@ def data_shape(X: modALinput):
 
     raise TypeError('%s datatype is not supported' % type(X))
 
-def data2matrix(blocks: Sequence[modALinput]) -> modALinput:
+def addData2matrix(X_train: modALinput, X_new, X_idx) -> modALinput:
     """
     Adds the new data to a sparse matrix
 
     Args:
-        blocks: Sequence of modALinput objects.
+        X_train: Training data in sparse format matrix
+        X_new: Value of new data to be added to training set
+        X_idx: Set of form (sparse_coordinate, row_idx, col_idx)
 
     Returns:
         New sequence of vertically stacked elements.
     """
-    if any([sp.issparse(b) for b in blocks]):
-        return sp.vstack(blocks)
-    elif isinstance(blocks[0], pd.DataFrame):
-        return blocks[0].append(blocks[1:])
-    elif isinstance(blocks[0], np.ndarray):
-        return np.concatenate(blocks)
-    elif isinstance(blocks[0], list):
-        return np.concatenate(blocks).tolist()
 
-    raise TypeError('%s datatype is not supported' % type(blocks[0]))
+    data = [X_new]
+    row = [X_idx[1]]
+    col = [X_idx[2]]
+
+    X_new = sp.coo_matrix((data, (row, col)),shape=X_train.shape)
+
+    return X_train + X_new
+
+def removeData2matrix(X_test: modALinput, X_idx) -> modALinput:
+    """
+    Removes the queried data from the sparse testing matrix
+
+    Args:
+        X_test: Testing data in sparse format matrix
+        X_idx: Set of form (sparse_coordinate, row_idx, col_idx)
+
+    Returns:
+        New sequence of vertically stacked elements.
+    """
+
+    data = np.delete(X_test.data,X_idx[0])
+    row = np.delete(X_test.row,X_idx[0])
+    col = np.delete(X_test.col,X_idx[0])
+
+    X_new = sp.coo_matrix((data, (row, col)),shape=X_test.shape)
+
+    return X_new

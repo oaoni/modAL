@@ -17,7 +17,7 @@ from sklearn.utils import check_array
 
 import scipy.sparse as sp
 
-from modAL.utils.data import data_vstack, data_hstack, modALinput, retrieve_rows, data2matrix
+from modAL.utils.data import data_vstack, data_hstack, modALinput, retrieve_rows, addData2matrix, removeData2matrix
 
 if sys.version_info >= (3, 4):
     ABC = abc.ABC
@@ -466,6 +466,7 @@ class BaseTransformer(ABC, BaseEstimator):
                  estimator: BaseEstimator,
                  query_strategy: Callable,
                  X_training: Optional[modALinput] = None,
+                 X_testing: Optional[modALinput] = None,
                  bootstrap_init: bool = False,
                  on_transformed: bool = False,
                  force_all_finite: bool = True,
@@ -478,32 +479,36 @@ class BaseTransformer(ABC, BaseEstimator):
         self.on_transformed = on_transformed
 
         self.X_training = X_training
-        self.y_training = y_training
+        self.X_testing = X_testing
         if X_training is not None:
             self._fit_to_known(bootstrap=bootstrap_init, **fit_kwargs)
 
         assert isinstance(force_all_finite, bool), 'force_all_finite must be a bool'
         self.force_all_finite = force_all_finite
 
-    def _add_training_data(self, X: modALinput) -> None:
+    def _add_training_data(self, X_new: modALinput, X_idx) -> None:
         """
         Adds the new data and label to the known data, but does not retrain the model.
+        Might want to consider making X_new already a sparse array of new training examples
 
         Args:
-            X: The new samples for which the labels are supplied by the expert.
+            X_new: The new sample for which the labels are supplied by the expert.
+            X_idx: The sparse form and array indices for the new sample.
 
         Note:
             If the classifier has been fitted, the features in X have to agree with the training samples which the
             classifier has seen.
         """
-        check_array(X, y, accept_sparse=True, ensure_2d=False, allow_nd=True, dtype=None,
-                  force_all_finite=self.force_all_finite)
+        # check_array(X, accept_sparse=True, ensure_2d=False, allow_nd=True, dtype=None,
+        #           force_all_finite=self.force_all_finite)
 
         if self.X_training is None:
-            self.X_training = X
+            print("Training data not added yet")
+            self.X_training = X_new
         else:
             try:
-                self.X_training = data2matrix((self.X_training, X))
+                self.X_training = addData2matrix(self.X_training, X_new, X_idx)
+                self.X_testing = removeData2matrix(self.X_testing, X_idx)
             except ValueError:
                 raise ValueError('the coordinate of the new training data must'
                                  'agree with the training data provided so far')
@@ -549,7 +554,7 @@ class BaseTransformer(ABC, BaseEstimator):
         # concatenate all transformations and return
         return data_hstack(Xt)
 
-    def _fit_to_known(self, bootstrap: bool = False, **fit_kwargs) -> 'BaseLearner':
+    def _fit_to_known(self, bootstrap: bool = False, **fit_kwargs) -> 'BaseTransformer':
         """
         Fits self.estimator to the training data and labels provided to it so far.
 
@@ -561,7 +566,7 @@ class BaseTransformer(ABC, BaseEstimator):
             self
         """
         if not bootstrap:
-            self.estimator.fit(self.X_training, self.y_training, **fit_kwargs)
+            self.estimator.fit(self.X_training, self.X_testing, **fit_kwargs)
         else:
             n_instances = self.X_training.shape[0]
             bootstrap_idx = np.random.choice(range(n_instances), n_instances, replace=True)
@@ -569,13 +574,12 @@ class BaseTransformer(ABC, BaseEstimator):
 
         return self
 
-    def _fit_on_new(self, X: modALinput, y: modALinput, bootstrap: bool = False, **fit_kwargs) -> 'BaseLearner':
+    def _fit_on_new(self, X: modALinput, bootstrap: bool = False, **fit_kwargs) -> 'BaseTransformer':
         """
         Fits self.estimator to the given data and labels.
 
         Args:
             X: The new samples for which the labels are supplied by the expert.
-            y: Labels corresponding to the new instances in X.
             bootstrap: If True, the method trains the model on a set bootstrapped from X.
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
 
@@ -593,7 +597,7 @@ class BaseTransformer(ABC, BaseEstimator):
 
         return self
 
-    def fit(self, X: modALinput, y: modALinput, bootstrap: bool = False, **fit_kwargs) -> 'BaseLearner':
+    def fit(self, X: modALinput, bootstrap: bool = False, **fit_kwargs) -> 'BaseTransformer':
         """
         Interface for the fit method of the predictor. Fits the predictor to the supplied data, then stores it
         internally for the active learning loop.
@@ -612,12 +616,12 @@ class BaseTransformer(ABC, BaseEstimator):
         Returns:
             self
         """
-        check_X_y(X, y, accept_sparse=True, ensure_2d=False, allow_nd=True, multi_output=True, dtype=None,
+        check_array(X, accept_sparse=True, ensure_2d=False, allow_nd=True, dtype=None,
                   force_all_finite=self.force_all_finite)
-        self.X_training, self.y_training = X, y
+        self.X_training = X
         return self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
 
-    def predict(self, X: modALinput, **predict_kwargs) -> Any:
+    def predict(self, **predict_kwargs) -> Any:
         """
         Estimator predictions for X. Interface with the predict method of the estimator.
 
@@ -628,7 +632,7 @@ class BaseTransformer(ABC, BaseEstimator):
         Returns:
             Estimator predictions for X.
         """
-        return self.estimator.predict(X, **predict_kwargs)
+        return self.estimator.predict(**predict_kwargs)
 
     def predict_proba(self, X: modALinput, **predict_proba_kwargs) -> Any:
         """
@@ -643,12 +647,11 @@ class BaseTransformer(ABC, BaseEstimator):
         """
         return self.estimator.predict_proba(X, **predict_proba_kwargs)
 
-    def query(self, X_pool, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
+    def query(self, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
         """
-        Finds the n_instances most informative point in the data provided by calling the query_strategy function.
+        Finds the n_instances most informative point in the testing data provided by calling the query_strategy function.
 
         Args:
-            X_pool: Pool of unlabeled instances to retrieve most informative instances from
             *query_args: The arguments for the query strategy. For instance, in the case of
                 :func:`~modAL.uncertainty.uncertainty_sampling`, it is the pool of samples from which the query strategy
                 should choose instances to request labels.
@@ -659,13 +662,19 @@ class BaseTransformer(ABC, BaseEstimator):
             labelled and the instances themselves. Can be different in other cases, for instance only the instance to be
             labelled upon query synthesis.
         """
-        query_result = self.query_strategy(self, X_pool, *query_args, **query_kwargs)
+        query_idx = self.query_strategy(self, *query_args, **query_kwargs)
 
-        if isinstance(query_result, tuple):
+        query_row = self.X_testing.row[query_idx]
+        query_col = self.X_testing.col[query_idx]
+        query_data = self.X_testing.data[query_idx]
+
+        query_coord = (query_idx, query_row, query_col)
+
+        if isinstance(query_coord, tuple):
             warnings.warn("Query strategies should no longer return the selected instances, "
                           "this is now handled by the query method. "
                           "Please return only the indices of the selected instances.", DeprecationWarning)
-            return query_result
+            return query_coord, query_data
 
         return query_result, retrieve_rows(X_pool, query_result)
 

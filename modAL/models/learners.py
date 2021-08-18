@@ -5,7 +5,7 @@ from typing import Callable, Optional, Tuple, List, Any
 from sklearn.base import BaseEstimator
 from sklearn.metrics import accuracy_score
 
-from modAL.models.base import BaseLearner, BaseCommittee
+from modAL.models.base import BaseLearner, BaseCommittee, BaseTransformer
 from modAL.utils.validation import check_class_labels, check_class_proba
 from modAL.utils.data import modALinput, retrieve_rows
 from modAL.uncertainty import uncertainty_sampling
@@ -572,14 +572,15 @@ class ActiveCompletion(BaseTransformer):
                  estimator: BaseEstimator,
                  query_strategy: Callable = uncertainty_sampling,
                  X_training: Optional[modALinput] = None,
+                 X_testing: Optional[modALinput] = None,
                  bootstrap_init: bool = False,
                  on_transformed: bool = False,
                  **fit_kwargs
                  ) -> None:
-        super().__init__(estimator, query_strategy,
-                         X_training, bootstrap_init, on_transformed, **fit_kwargs)
+        super().__init__(estimator, query_strategy, X_training,
+                         X_testing, bootstrap_init, on_transformed, **fit_kwargs)
 
-    def teach(self, X: modALinput, bootstrap: bool = False, only_new: bool = False, **fit_kwargs) -> None:
+    def teach(self, X: modALinput, X_idx, bootstrap: bool = False, only_new: bool = False, **fit_kwargs) -> None:
         """
         Adds X to the known training data and retrains the predictor with the augmented dataset.
 
@@ -592,8 +593,8 @@ class ActiveCompletion(BaseTransformer):
                 tensorflow or keras).
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
-        self._add_training_data(X, y)
+        self._add_training_data(X, X_idx)
         if not only_new:
             self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
         else:
-            self._fit_on_new(X, y, bootstrap=bootstrap, **fit_kwargs)
+            self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
