@@ -571,6 +571,7 @@ class ActiveCompletion(BaseTransformer):
     def __init__(self,
                  estimator: BaseEstimator,
                  query_strategy: Callable = uncertainty_sampling,
+                 query_name = 'active',
                  X_training: Optional[modALinput] = None,
                  X_testing: Optional[modALinput] = None,
                  bootstrap_init: bool = False,
@@ -580,7 +581,14 @@ class ActiveCompletion(BaseTransformer):
         super().__init__(estimator, query_strategy, X_training,
                          X_testing, bootstrap_init, on_transformed, **fit_kwargs)
 
-    def teach(self, X: modALinput, X_idx, bootstrap: bool = False, only_new: bool = False, **fit_kwargs) -> None:
+        self.query_name= query_name
+        #Initialize list for storing metrics for each teaching iteration
+        self.active_iter = 0 # Keep track of the number of active iterations
+        self.teachlog = []
+
+
+    def teach(self, X: modALinput, X_idx, bootstrap: bool = False,
+     only_new: bool = False, n_replicates=1, **fit_kwargs) -> None:
         """
         Adds X to the known training data and retrains the predictor with the augmented dataset.
 
@@ -593,8 +601,25 @@ class ActiveCompletion(BaseTransformer):
                 tensorflow or keras).
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
+        self.active_iter += 1
         self._add_training_data(X, X_idx)
-        if not only_new:
-            self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
-        else:
-            self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
+
+        #This can be distributed
+        for n_rep in range(1,n_replicates+1):
+            if not only_new:
+                self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
+            else:
+                self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
+
+            self._teachLog(self.active_iter, n_rep, X, X_idx,
+                           self.estimator.train_rmse, self.estimator.test_rmse,
+                           self.estimator.test_corr, self.query_name)
+
+
+
+    def _teachLog(self, active_iter, n_rep, X, X_idx, train_rmse, test_rmse, test_corr, query_name):
+        self.teachlog.append([active_iter, n_rep, X, X_idx[0], X_idx[1], X_idx[2],
+                              train_rmse, test_rmse, test_corr, query_name])
+        # Information that I want to store:
+        # query value
+        # Additional metrics like moving average
