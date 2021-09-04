@@ -486,7 +486,7 @@ class BaseTransformer(ABC, BaseEstimator):
         assert isinstance(force_all_finite, bool), 'force_all_finite must be a bool'
         self.force_all_finite = force_all_finite
 
-    def _add_training_data(self, X_new: modALinput, X_idx) -> None:
+    def _add_training_data(self, X_new: modALinput, X_idx, symmetrical=True) -> None:
         """
         Adds the new data and label to the known data, but does not retrain the model.
         Might want to consider making X_new already a sparse array of new training examples
@@ -507,8 +507,8 @@ class BaseTransformer(ABC, BaseEstimator):
             self.X_training = X_new
         else:
             try:
-                self.X_training = addData2matrix(self.X_training, X_new, X_idx)
-                self.X_testing = removeData2matrix(self.X_testing, X_idx)
+                self.X_training = addData2matrix(self.X_training, X_new, X_idx, symmetrical)
+                self.X_testing = removeData2matrix(self.X_testing, X_idx, symmetrical)
             except ValueError:
                 raise ValueError('the coordinate of the new training data must'
                                  'agree with the training data provided so far')

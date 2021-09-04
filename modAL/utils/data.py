@@ -153,7 +153,7 @@ def data_shape(X: modALinput):
 
     raise TypeError('%s datatype is not supported' % type(X))
 
-def addData2matrix(X_train: modALinput, X_new, X_idx) -> modALinput:
+def addData2matrix(X_train: modALinput, X_new, X_idx, symmetrical) -> modALinput:
     """
     Adds the new data to a sparse matrix
 
@@ -166,15 +166,18 @@ def addData2matrix(X_train: modALinput, X_new, X_idx) -> modALinput:
         New sequence of vertically stacked elements.
     """
 
-    data = [X_new]
-    row = [X_idx[1]]
-    col = [X_idx[2]]
+    data = X_new
+    row = X_idx[1]
+    col = X_idx[2]
 
-    X_new = sp.coo_matrix((data, (row, col)),shape=X_train.shape)
+    if (symmetrical) and (row != col):
+        X_new = sp.coo_matrix(([data,data], ([row, col], [col, row])),shape=X_train.shape)
+    else:
+        X_new = sp.coo_matrix(([data], ([row], [col])),shape=X_train.shape)
 
-    return X_train + X_new
+    return sp.coo_matrix(X_train + X_new)
 
-def removeData2matrix(X_test: modALinput, X_idx) -> modALinput:
+def removeData2matrix(X_test: modALinput, X_idx, symmetrical) -> modALinput:
     """
     Removes the queried data from the sparse testing matrix
 
@@ -185,11 +188,20 @@ def removeData2matrix(X_test: modALinput, X_idx) -> modALinput:
     Returns:
         New sequence of vertically stacked elements.
     """
+    if (symmetrical) and (X_idx[1] != X_idx[2]):
+        row = X_idx[1]
+        col = X_idx[2]
+        mask = sp.coo_matrix(([-1,-1], ([row,col],[col,row])),shape=X_test.shape) + sp.coo_matrix(np.ones(X_test.shape))
 
-    data = np.delete(X_test.data,X_idx[0])
-    row = np.delete(X_test.row,X_idx[0])
-    col = np.delete(X_test.col,X_idx[0])
+        X_new = sp.coo_matrix(X_test.multiply(mask))
 
-    X_new = sp.coo_matrix((data, (row, col)),shape=X_test.shape)
+    else:
+        data = np.delete(X_test.data,X_idx[0])
+        row = np.delete(X_test.row,X_idx[0])
+        col = np.delete(X_test.col,X_idx[0])
+
+        X_new = sp.coo_matrix((data, (row, col)),shape=X_test.shape)
+
+
 
     return X_new
