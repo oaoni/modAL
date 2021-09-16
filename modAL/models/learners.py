@@ -11,6 +11,7 @@ from modAL.utils.data import modALinput, retrieve_rows
 from modAL.uncertainty import uncertainty_sampling
 from modAL.disagreement import vote_entropy_sampling, max_std_sampling
 from modAL.acquisition import max_EI
+from tqdm.notebook import trange
 
 """
 Classes for active learning algorithms
@@ -586,6 +587,24 @@ class ActiveCompletion(BaseTransformer):
         self.active_iter = 0 # Keep track of the number of active iterations
         self.teachlog = []
 
+    def train(self, bootstrap: bool = False, only_new: bool = False, n_replicates=1,
+              active_iters=500, verbose=False, make_plot= False,
+              query_batch=1, **fit_kwargs) -> None:
+        """
+        Training session via active learning regime. Queries a new example and teaches the model on the model
+        on the updated dataset.
+        """
+        t = trange(active_iters)
+        for idx in t:
+            query_idx, query_instance = self.query()
+
+            self.teach(query_instance, query_idx, verbose=False,
+                                 make_plot=False, n_replicates=1, **fit_kwargs)
+
+            if verbose:
+                print('query index: {}\nquery instance: {}'.format(query_idx, query_instance))
+                print(self.teachlog[-1])
+            t.set_postfix({'test corr': "{:.5f}".format(self.teachlog[-1][-2])})
 
     def teach(self, X: modALinput, X_idx, bootstrap: bool = False,
      only_new: bool = False, n_replicates=1, **fit_kwargs) -> None:
