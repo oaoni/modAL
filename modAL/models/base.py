@@ -662,21 +662,27 @@ class BaseTransformer(ABC, BaseEstimator):
             labelled and the instances themselves. Can be different in other cases, for instance only the instance to be
             labelled upon query synthesis.
         """
-        query_idx = self.query_strategy(self, *query_args, **query_kwargs)
+        # query_idx = self.query_strategy(self, *query_args, **query_kwargs)
+        query_idxs = self.query_strategy(self, *query_args, **query_kwargs)
 
-        query_row = self.X_testing.row[query_idx]
-        query_col = self.X_testing.col[query_idx]
-        query_data = self.X_testing.data[query_idx]
+        query_coords = [(query_idx, self.X_testing.row[query_idx],
+                        self.X_testing.col[query_idx])\
+                        for query_idx in query_idxs]
+        query_datas = [self.X_testing.data[query_idx] for query_idx in query_idxs]
 
-        query_coord = (query_idx, query_row, query_col)
+        # query_row = self.X_testing.row[query_idx]
+        # query_col = self.X_testing.col[query_idx]
+        # query_data = self.X_testing.data[query_idx]
 
-        if isinstance(query_coord, tuple):
-            warnings.warn("Query strategies should no longer return the selected instances, "
-                          "this is now handled by the query method. "
-                          "Please return only the indices of the selected instances.", DeprecationWarning)
-            return query_coord, query_data
+        # query_coord = (query_idx, query_row, query_col)
 
-        return query_result, retrieve_rows(X_pool, query_result)
+        # if isinstance(query_coord, tuple):
+        #     warnings.warn("Query strategies should no longer return the selected instances, "
+        #                   "this is now handled by the query method. "
+        #                   "Please return only the indices of the selected instances.", DeprecationWarning)
+            # return query_coord, query_data
+
+        return query_coords, query_datas
 
     def score(self, X: modALinput, y: modALinput, **score_kwargs) -> Any:
         """

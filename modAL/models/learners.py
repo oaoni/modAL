@@ -596,14 +596,15 @@ class ActiveCompletion(BaseTransformer):
         """
         t = trange(active_iters)
         for idx in t:
-            query_idx, query_instance = self.query()
 
-            self.teach(query_instance, query_idx, verbose=False,
-                                 make_plot=False, n_replicates=1, **fit_kwargs)
+            query_idx, query_instance = self.query(query_batch)
 
-            if verbose:
-                print('query index: {}\nquery instance: {}'.format(query_idx, query_instance))
-                print(self.teachlog[-1])
+            self.teach(query_instance, query_idx, verbose=verbose,
+                                 make_plot=make_plot, n_replicates=n_replicates, **fit_kwargs)
+
+            # if verbose:
+            #     print('query index: {}\nquery instance: {}'.format(query_idx, query_instance))
+            #     print(self.teachlog[-1])
             t.set_postfix({'test corr': "{:.5f}".format(self.teachlog[-1][-2])})
 
     def teach(self, X: modALinput, X_idx, bootstrap: bool = False,
@@ -621,18 +622,21 @@ class ActiveCompletion(BaseTransformer):
             **fit_kwargs: Keyword arguments to be passed to the fit method of the predictor.
         """
         self.active_iter += 1
-        self._add_training_data(X, X_idx)
-
-        #This can be distributed
-        for n_rep in range(1,n_replicates+1):
-            if not only_new:
-                self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
-            else:
-                self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
-
-            self._teachLog(self.active_iter, n_rep, X, X_idx,
+        batches = len(X)
+        for i in range(batches):
+            self._add_training_data(X[i], X_idx[i])
+            n_rep = 1
+            self._teachLog(self.active_iter, n_rep, X[i], X_idx[i],
                            self.estimator.train_rmse, self.estimator.test_rmse,
                            self.estimator.test_corr, self.query_name)
+
+        #This can be distributed
+        # for n_rep in range(1,n_replicates+1):
+        # Need to change how replicates are generated
+        if not only_new:
+            self._fit_to_known(bootstrap=bootstrap, **fit_kwargs)
+        else:
+            self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
 
 
 
