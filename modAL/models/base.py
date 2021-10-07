@@ -647,7 +647,7 @@ class BaseTransformer(ABC, BaseEstimator):
         """
         return self.estimator.predict_proba(X, **predict_proba_kwargs)
 
-    def query(self, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
+    def query(self, query_batch, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
         """
         Finds the n_instances most informative point in the testing data provided by calling the query_strategy function.
 
@@ -662,13 +662,17 @@ class BaseTransformer(ABC, BaseEstimator):
             labelled and the instances themselves. Can be different in other cases, for instance only the instance to be
             labelled upon query synthesis.
         """
-        # query_idx = self.query_strategy(self, *query_args, **query_kwargs)
-        query_idxs = self.query_strategy(self, *query_args, **query_kwargs)
 
-        query_coords = [(query_idx, self.X_testing.row[query_idx],
-                        self.X_testing.col[query_idx])\
-                        for query_idx in query_idxs]
-        query_datas = [self.X_testing.data[query_idx] for query_idx in query_idxs]
+        query_rows, query_cols, query_data = self.query_strategy(self, query_batch, *query_args, **query_kwargs)
+
+
+
+        # query_idxs = self.query_strategy(self, query_batch, *query_args, **query_kwargs)
+        #
+        # query_coords = [(query_idx, self.X_testing.row[query_idx],
+        #                 self.X_testing.col[query_idx])\
+        #                 for query_idx in query_idxs]
+        # query_datas = [self.X_testing.data[query_idx] for query_idx in query_idxs]
 
         # query_row = self.X_testing.row[query_idx]
         # query_col = self.X_testing.col[query_idx]
@@ -682,7 +686,7 @@ class BaseTransformer(ABC, BaseEstimator):
         #                   "Please return only the indices of the selected instances.", DeprecationWarning)
             # return query_coord, query_data
 
-        return query_coords, query_datas
+        return query_rows, query_cols, query_data
 
     def score(self, X: modALinput, y: modALinput, **score_kwargs) -> Any:
         """

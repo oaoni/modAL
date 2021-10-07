@@ -165,10 +165,10 @@ def addData2matrix(X_train: modALinput, X_new, X_idx, symmetrical) -> modALinput
     Returns:
         New sequence of vertically stacked elements.
     """
-
+    #Input: self.X_training, X_new, X_idx, symmetrical
     data = X_new
-    row = X_idx[1]
-    col = X_idx[2]
+    row = X_idx[0]
+    col = X_idx[1]
 
     if (symmetrical) and (row != col):
         X_new = sp.coo_matrix(([data,data], ([row, col], [col, row])),shape=X_train.shape)
@@ -188,19 +188,24 @@ def removeData2matrix(X_test: modALinput, X_idx, symmetrical) -> modALinput:
     Returns:
         New sequence of vertically stacked elements.
     """
-    if (symmetrical) and (X_idx[1] != X_idx[2]):
-        row = X_idx[1]
-        col = X_idx[2]
-        mask = sp.coo_matrix(([-1,-1], ([row,col],[col,row])),shape=X_test.shape) + sp.coo_matrix(np.ones(X_test.shape))
 
+    row = X_idx[0]
+    col = X_idx[1]
+    #Input: self.X_testing, X_idx, symmetrical
+    if (symmetrical) and (row != col):
+        
+        mask = sp.coo_matrix(([-1,-1], ([row,col],[col,row])),shape=X_test.shape) + sp.coo_matrix(np.ones(X_test.shape))
         X_new = sp.coo_matrix(X_test.multiply(mask))
 
     else:
-        data = np.delete(X_test.data,X_idx[0])
-        row = np.delete(X_test.row,X_idx[0])
-        col = np.delete(X_test.col,X_idx[0])
 
-        X_new = sp.coo_matrix((data, (row, col)),shape=X_test.shape)
+        mask = mask = sp.coo_matrix(([-1], ([row],[col])),shape=X_test.shape) + sp.coo_matrix(np.ones(X_test.shape))
+        X_new = sp.coo_matrix(X_test.multiply(mask))
+        # data = np.delete(X_test.data,X_idx[0])
+        # row = np.delete(X_test.row,X_idx[0])
+        # col = np.delete(X_test.col,X_idx[0])
+        #
+        # X_new = sp.coo_matrix((data, (row, col)),shape=X_test.shape)
 
 
 

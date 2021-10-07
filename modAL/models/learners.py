@@ -588,7 +588,7 @@ class ActiveCompletion(BaseTransformer):
         self.teachlog = []
 
     def train(self, bootstrap: bool = False, only_new: bool = False, n_replicates=1,
-              active_iters=500, verbose=False, make_plot= False,
+              active_iters=500, verbose=False, make_plot= False, is_sym=True,
               query_batch=1, **fit_kwargs) -> None:
         """
         Training session via active learning regime. Queries a new example and teaches the model on the model
@@ -597,9 +597,10 @@ class ActiveCompletion(BaseTransformer):
         t = trange(active_iters)
         for idx in t:
 
-            query_idx, query_instance = self.query(query_batch)
+            #List of tuple indices(idx,row,col) and list of instances
+            query_rows, query_cols, query_data = self.query(query_batch)
 
-            self.teach(query_instance, query_idx, verbose=verbose,
+            self.teach(query_rows, query_cols, query_data, verbose=verbose, is_sym=is_sym,
                                  make_plot=make_plot, n_replicates=n_replicates, **fit_kwargs)
 
             # if verbose:
@@ -607,8 +608,8 @@ class ActiveCompletion(BaseTransformer):
             #     print(self.teachlog[-1])
             t.set_postfix({'test corr': "{:.5f}".format(self.teachlog[-1][-2])})
 
-    def teach(self, X: modALinput, X_idx, bootstrap: bool = False,
-     only_new: bool = False, n_replicates=1, **fit_kwargs) -> None:
+    def teach(self, X_row, X_col, X: modALinput, bootstrap: bool = False,
+     only_new: bool = False, n_replicates=1, is_sym=True,**fit_kwargs) -> None:
         """
         Adds X to the known training data and retrains the predictor with the augmented dataset.
 
@@ -624,9 +625,9 @@ class ActiveCompletion(BaseTransformer):
         self.active_iter += 1
         batches = len(X)
         for i in range(batches):
-            self._add_training_data(X[i], X_idx[i])
+            self._add_training_data(X[i], (X_row[i], X_col[i]), symmetrical=is_sym)
             n_rep = 1
-            self._teachLog(self.active_iter, n_rep, X[i], X_idx[i],
+            self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],
                            self.estimator.train_rmse, self.estimator.test_rmse,
                            self.estimator.test_corr, self.query_name)
 
@@ -640,8 +641,8 @@ class ActiveCompletion(BaseTransformer):
 
 
 
-    def _teachLog(self, active_iter, n_rep, X, X_idx, train_rmse, test_rmse, test_corr, query_name):
-        self.teachlog.append([active_iter, n_rep, X, X_idx[0], X_idx[1], X_idx[2],
+    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, train_rmse, test_rmse, test_corr, query_name):
+        self.teachlog.append([active_iter, batch, n_rep, X, X_row, X_col,
                               train_rmse, test_rmse, test_corr, query_name])
         # Information that I want to store:
         # query value
