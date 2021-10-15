@@ -1,3 +1,3 @@
-from .modAL.models import ActiveLearner
-from .modAL.models import ActiveCompletion
-from .modAL.utils import active_sample, max_uncertainty, weighted_uncertainty, random_query, leverage_online, leverage_observed
+from .models import ActiveLearner, Committee, CommitteeRegressor
+
+__all__ = ['ActiveLearner', 'Committee', 'CommitteeRegressor']
