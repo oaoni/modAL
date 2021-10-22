@@ -135,6 +135,7 @@ def leverage_online(estimator, query_batch):
     pred, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
+    X_test = estimator.X_testing.tocsc()
     X_shape = estimator.X_testing.shape
     X_pred = coo_matrix((pred, (pred_row, pred_col)), shape=X_shape).tocsc()
 
