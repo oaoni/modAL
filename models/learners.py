@@ -606,7 +606,7 @@ class ActiveCompletion(BaseTransformer):
             # if verbose:
             #     print('query index: {}\nquery instance: {}'.format(query_idx, query_instance))
             #     print(self.teachlog[-1])
-            t.set_postfix({'test corr': "{:.5f}".format(self.teachlog[-1][-2])})
+            t.set_postfix({'test corr': "{:.5f}".format(self.teachlog[-1]['test_corr'])})
 
     def teach(self, X_row, X_col, X: modALinput, bootstrap: bool = False,
      only_new: bool = False, n_replicates=1, is_sym=True,**fit_kwargs) -> None:
@@ -627,9 +627,10 @@ class ActiveCompletion(BaseTransformer):
         for i in range(batches):
             self._add_training_data(X[i], (X_row[i], X_col[i]), symmetrical=is_sym)
             n_rep = 1
-            self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],
-                           self.estimator.train_rmse, self.estimator.test_rmse,
-                           self.estimator.test_corr, self.query_name)
+
+            teachDict  = dict(self.estimator.train_dict)
+            self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],self.query_name,
+                           teachDict)
 
         #This can be distributed
         # for n_rep in range(1,n_replicates+1):
@@ -639,11 +640,14 @@ class ActiveCompletion(BaseTransformer):
         else:
             self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
 
+    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict):
 
-
-    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, train_rmse, test_rmse, test_corr, query_name):
-        self.teachlog.append([active_iter, batch, n_rep, X, X_row, X_col,
-                              train_rmse, test_rmse, test_corr, query_name])
-        # Information that I want to store:
-        # query value
-        # Additional metrics like moving average
+        teach_dict['active_iter'] = active_iter
+        teach_dict['batch'] = batch
+        teach_dict['n_rep'] = n_rep
+        teach_dict['X'] = X
+        teach_dict['X_row'] = X_row
+        teach_dict['X_col'] = X_col
+        teach_dict['query_name'] = query_name
+        
+        self.teachlog.append(teach_dict)

@@ -666,26 +666,6 @@ class BaseTransformer(ABC, BaseEstimator):
         query_rows, query_cols, query_data = self.query_strategy(self, query_batch, *query_args, **query_kwargs)
 
 
-
-        # query_idxs = self.query_strategy(self, query_batch, *query_args, **query_kwargs)
-        #
-        # query_coords = [(query_idx, self.X_testing.row[query_idx],
-        #                 self.X_testing.col[query_idx])\
-        #                 for query_idx in query_idxs]
-        # query_datas = [self.X_testing.data[query_idx] for query_idx in query_idxs]
-
-        # query_row = self.X_testing.row[query_idx]
-        # query_col = self.X_testing.col[query_idx]
-        # query_data = self.X_testing.data[query_idx]
-
-        # query_coord = (query_idx, query_row, query_col)
-
-        # if isinstance(query_coord, tuple):
-        #     warnings.warn("Query strategies should no longer return the selected instances, "
-        #                   "this is now handled by the query method. "
-        #                   "Please return only the indices of the selected instances.", DeprecationWarning)
-            # return query_coord, query_data
-
         return query_rows, query_cols, query_data
 
     def score(self, X: modALinput, y: modALinput, **score_kwargs) -> Any:
