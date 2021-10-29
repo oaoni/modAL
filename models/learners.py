@@ -628,11 +628,7 @@ class ActiveCompletion(BaseTransformer):
             self._add_training_data(X[i], (X_row[i], X_col[i]), symmetrical=is_sym)
             n_rep = 1
 
-            teachDict  = dict(self.estimator.train_dict)
-            self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],self.query_name,
-                           teachDict)
-
-        #This can be distributed
+        # This can be distributed
         # for n_rep in range(1,n_replicates+1):
         # Need to change how replicates are generated
         if not only_new:
@@ -640,7 +636,11 @@ class ActiveCompletion(BaseTransformer):
         else:
             self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
 
-        #Move teachlog here
+        # Log the newly fitted data points with the respective metrics
+        for i in range(batches):
+            teachDict  = dict(self.estimator.train_dict)
+            self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],self.query_name,
+                           teachDict)
 
     def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict):
 
