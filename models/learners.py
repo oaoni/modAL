@@ -640,6 +640,8 @@ class ActiveCompletion(BaseTransformer):
         else:
             self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
 
+        #Move teachlog here
+
     def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict):
 
         teach_dict['active_iter'] = active_iter
@@ -649,5 +651,5 @@ class ActiveCompletion(BaseTransformer):
         teach_dict['X_row'] = X_row
         teach_dict['X_col'] = X_col
         teach_dict['query_name'] = query_name
-        
+
         self.teachlog.append(teach_dict)
