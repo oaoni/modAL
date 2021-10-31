@@ -1,7 +1,7 @@
 """
 Functions to select certain element indices from an estimators current predictions.
 """
-from scipy.sparse import coo_matrix
+from scipy.sparse import coo_matrix, triu
 import pandas as pd
 import numpy as np
 import random
@@ -89,7 +89,7 @@ def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
 
     return query_rows, query_cols
 
-def max_uncertainty(estimator, query_batch):
+def max_uncertainty(estimator, query_batch, is_sym):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -97,13 +97,13 @@ def max_uncertainty(estimator, query_batch):
     X_shape = X_test.shape
 
     query_rows, query_cols = active_sample(std,pred_row,pred_col,
-                                           X_shape,'max',query_batch)
+                                           X_shape,'max',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
     return query_rows, query_cols, query_data
 
-def weighted_uncertainty(estimator, query_batch):
+def weighted_uncertainty(estimator, query_batch, is_sym):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -111,13 +111,13 @@ def weighted_uncertainty(estimator, query_batch):
     X_shape = X_test.shape
 
     query_rows, query_cols = active_sample(std,pred_row,pred_col,
-                                           X_shape,'rand_prob',query_batch)
+                                           X_shape,'rand_prob',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
     return query_rows, query_cols, query_data
 
-def random_query(estimator, query_batch):
+def random_query(estimator, query_batch, is_sym):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -125,13 +125,13 @@ def random_query(estimator, query_batch):
     X_shape = X_test.shape
 
     query_rows, query_cols = active_sample(X_test.data,pred_row,pred_col,
-                                           X_shape,'rand',query_batch)
+                                           X_shape,'rand',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
     return query_rows, query_cols, query_data
 
-def leverage_online(estimator, query_batch):
+def leverage_online(estimator, query_batch, is_sym):
     pred, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -149,13 +149,13 @@ def leverage_online(estimator, query_batch):
     #Sample
     query_rows, query_cols = active_sample(lev_sampling.values[pred_row, pred_col],
                                            pred_row,pred_col,
-                                           X_shape,'rand_prob',query_batch)
+                                           X_shape,'rand_prob',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
     return query_rows, query_cols, query_data
 
-def leverage_observed(estimator, query_batch):
+def leverage_observed(estimator, query_batch, is_sym):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -172,7 +172,7 @@ def leverage_observed(estimator, query_batch):
     #Active sample
     query_rows, query_cols = active_sample(test_lev,
                                            pred_row,pred_col,
-                                           X_shape,'rand_prob',query_batch)
+                                           X_shape,'rand_prob',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 

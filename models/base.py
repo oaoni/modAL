@@ -647,7 +647,7 @@ class BaseTransformer(ABC, BaseEstimator):
         """
         return self.estimator.predict_proba(X, **predict_proba_kwargs)
 
-    def query(self, query_batch, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
+    def query(self, query_batch, is_sym, *query_args, **query_kwargs) -> Union[Tuple, modALinput]:
         """
         Finds the n_instances most informative point in the testing data provided by calling the query_strategy function.
 
@@ -663,7 +663,7 @@ class BaseTransformer(ABC, BaseEstimator):
             labelled upon query synthesis.
         """
 
-        query_rows, query_cols, query_data = self.query_strategy(self, query_batch, *query_args, **query_kwargs)
+        query_rows, query_cols, query_data = self.query_strategy(self, query_batch, is_sym, *query_args, **query_kwargs)
 
 
         return query_rows, query_cols, query_data

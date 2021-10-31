@@ -598,7 +598,7 @@ class ActiveCompletion(BaseTransformer):
         for idx in t:
 
             #List of tuple indices(idx,row,col) and list of instances
-            query_rows, query_cols, query_data = self.query(query_batch)
+            query_rows, query_cols, query_data = self.query(query_batch, is_sym)
 
             self.teach(query_rows, query_cols, query_data, verbose=verbose, is_sym=is_sym,
                                  make_plot=make_plot, n_replicates=n_replicates, **fit_kwargs)
