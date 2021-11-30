@@ -11,7 +11,7 @@ from modAL.utils.data import modALinput, retrieve_rows
 from modAL.uncertainty import uncertainty_sampling
 from modAL.disagreement import vote_entropy_sampling, max_std_sampling
 from modAL.acquisition import max_EI
-from tqdm.notebook import trange
+from tqdm import trange
 
 """
 Classes for active learning algorithms
