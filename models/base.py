@@ -665,7 +665,6 @@ class BaseTransformer(ABC, BaseEstimator):
 
         query_rows, query_cols, query_data = self.query_strategy(self, query_batch, is_sym, *query_args, **query_kwargs)
 
-
         return query_rows, query_cols, query_data
 
     def score(self, X: modALinput, y: modALinput, **score_kwargs) -> Any:

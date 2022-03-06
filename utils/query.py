@@ -58,6 +58,22 @@ def leverage_update(m, k, n=1, kernel=None, **kwargs):
     else:
         return np.random.choice(flat_ind,n,replace=False, p=p)
 
+def policy_func(policy):
+    if policy == 'random':
+        return random_query
+    elif policy == 'max_uncertainty':
+        return max_uncertainty
+    elif policy == 'weighted_uncertainty':
+        return weighted_uncertainty
+    elif policy == 'max_guided_density':
+        return max_guided_density
+    elif policy == 'weighted_guided_density':
+        return weighted_guided_density
+    elif policy == 'max_guided_diversity':
+        return max_guided_diversity
+    elif policy == 'guided_exploration':
+        return guided_exploration
+
 def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
     """
     Samples a set of datapoints with the respective active learning policy
@@ -117,7 +133,7 @@ def weighted_uncertainty(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def random_query(estimator, query_batch, is_sym):
+def random_query(estimator, query_batch, is_sym,guide_data):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -173,6 +189,158 @@ def leverage_observed(estimator, query_batch, is_sym):
     query_rows, query_cols = active_sample(test_lev,
                                            pred_row,pred_col,
                                            X_shape,'rand_prob',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def max_guided_density(estimator, query_batch, is_sym, guide_data):
+
+    # Load guide df
+    guide_df = estimator.guide_df
+
+    X_test = estimator.X_testing.tocsc()
+    test_coords = list(zip(*estimator.X_testing.tocsc().nonzero()))
+    X_shape = X_test.shape
+
+    # print('GUIDE DF HEAD: ', guide_df.head())
+    # print('TEST COORDS: ', test_coords[:4])
+    # print('FILT BOOL: ', guide_df['coords'].apply(eval).isin(test_coords)[:4])
+
+    # Filter exploration guide df to only contain the present testing data[
+    filt_guide = guide_df[guide_df['coords'].isin(test_coords)]
+
+    # print('Filtered guide is: ', filt_guide.head(), 'with shape: ', filt_guide.shape)
+
+    guide_values = filt_guide['density'].values
+    guide_row = filt_guide['row_coord'].values
+    guide_col = filt_guide['col_coord'].values
+
+    query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'max',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def weighted_guided_density(estimator, query_batch, is_sym):
+
+    # Load guide df
+    guide_df = estimator.guide_df
+
+    X_test = estimator.X_testing.tocsc()
+    test_coords = list(zip(*estimator.X_testing.tocsc().nonzero()))
+    X_shape = X_test.shape
+
+    # Filter exploration guide df to only contain the present testing data[
+    filt_guide = guide_df[guide_df['coords'].isin(test_coords)]
+
+    guide_values = filt_guide['density'].values
+    guide_row = filt_guide['row_coord'].values
+    guide_col = filt_guide['col_coord'].values
+
+    query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'rand_prob',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def max_guided_diversity(estimator, query_batch, is_sym):
+
+    # Load guide df
+    guide_df = estimator.guide_df
+
+    X_test = estimator.X_testing.tocsc()
+    test_coords = list(zip(*estimator.X_testing.tocsc().nonzero()))
+    X_shape = X_test.shape
+    guide_values = []
+    guide_row = []
+    guide_col = []
+
+    sorted_guide_df = guide_df.copy().sort_values('density',ascending=False)
+    sorted_guide_index = sorted_guide_df.index.values
+
+    guide_size = guide_df.shape[0]
+    w = 0 # Max Diversity sampling when w = 0
+    quant = w/guide_size
+
+    for i in range(query_batch):
+
+        quant_similarity = sorted_guide_df['similarity'].quantile(quant)
+        filt_guide = sorted_guide_df.query('similarity <= @quant_similarity')
+
+        # Sample value from the candidate set
+        filt_row = filt_guide.iloc[0,:][['row_coord', 'col_coord', 'coords','diversity']]
+        sample_row,sample_col,coords,sample_val = filt_row
+        filt_index = filt_row.name
+        guide_row.append(sample_row)
+        guide_col.append(sample_col)
+        guide_values.append(sample_val)
+
+        max_sim = np.maximum(guide_df['similarity'].values,
+                             all_pairwise_sim.iloc[:,filt_index].values)
+
+        sorted_guide_df = sorted_guide_df\
+        .assign(similarity=max_sim[sorted_guide_index])
+        guide_df = guide_df\
+        .assign(similarity=max_sim)
+
+    # Update guide df
+    estimator.guide_df = guide_df
+
+    query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'max',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def guided_exploration(estimator, query_batch, is_sym, guide_data):
+
+    # Load guide df
+    guide_df = estimator.guide_df
+
+    X_test = estimator.X_testing.tocsc()
+    test_coords = list(zip(*estimator.X_testing.tocsc().nonzero()))
+    X_shape = X_test.shape
+    guide_values = []
+    guide_row = []
+    guide_col = []
+
+    sorted_guide_df = guide_df.copy().sort_values('density',ascending=False)
+    sorted_guide_index = sorted_guide_df.index.values
+
+    guide_size = guide_df.shape[0]
+    w = 10
+    quant = w/guide_size
+
+    for i in range(query_batch):
+
+        quant_similarity = sorted_guide_df['similarity'].quantile(quant)
+        filt_guide = sorted_guide_df.query('similarity <= @quant_similarity')
+
+        # Sample value from the candidate set
+        filt_row = filt_guide.iloc[0,:][['row_coord', 'col_coord', 'coords','diversity']]
+        sample_row,sample_col,coords,sample_val = filt_row
+        filt_index = filt_row.name
+        guide_row.append(sample_row)
+        guide_col.append(sample_col)
+        guide_values.append(sample_val)
+
+        max_sim = np.maximum(guide_df['similarity'].values,
+                             guide_data.iloc[:,filt_index].values)
+
+        sorted_guide_df = sorted_guide_df\
+        .assign(similarity=max_sim[sorted_guide_index])
+        guide_df = guide_df\
+        .assign(similarity=max_sim)
+
+    # Update guide df
+    estimator.guide_df = guide_df
+
+    query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'max',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
