@@ -288,6 +288,7 @@ def max_guided_diversity(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Update guide df
     estimator.guide_df = guide_df
+    estimator.teachlog[-1]['similarity'] = guide_df['similarity'].values
 
     query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
                                            X_shape,'max',query_batch, is_sym)
@@ -338,6 +339,7 @@ def guided_exploration(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Update guide df
     estimator.guide_df = guide_df
+    estimator.teachlog[-1]['similarity'] = guide_df['similarity'].values
 
     query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
                                            X_shape,'max',query_batch, is_sym)
