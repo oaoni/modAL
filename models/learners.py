@@ -591,16 +591,6 @@ class ActiveCompletion(BaseTransformer):
         self._teachLog(self.active_iter, 0, 0, np.nan, np.nan, np.nan, self.query_name,
                            teachDict)
 
-    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict):
-
-        teach_dict['active_iter'] = active_iter
-        teach_dict['batch'] = batch
-        teach_dict['n_rep'] = n_rep
-        teach_dict['X'] = X
-        teach_dict['X_row'] = X_row
-        teach_dict['X_col'] = X_col
-        teach_dict['query_name'] = query_name
-
     def train(self, bootstrap: bool = False, only_new: bool = False, n_replicates=1,
               active_iters=500, verbose=False, make_plot= False, is_sym=True,
               query_batch=1, **fit_kwargs) -> None:
