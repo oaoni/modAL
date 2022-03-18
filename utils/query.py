@@ -105,7 +105,7 @@ def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
 
     return query_rows, query_cols
 
-def max_uncertainty(estimator, query_batch, is_sym):
+def max_uncertainty(estimator, query_batch, is_sym, guide_data, guide_val):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -119,7 +119,7 @@ def max_uncertainty(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def weighted_uncertainty(estimator, query_batch, is_sym):
+def weighted_uncertainty(estimator, query_batch, is_sym, guide_data, guide_val):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -133,7 +133,7 @@ def weighted_uncertainty(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def random_query(estimator, query_batch, is_sym,guide_data):
+def random_query(estimator, query_batch, is_sym, guide_data, guide_val):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -147,7 +147,7 @@ def random_query(estimator, query_batch, is_sym,guide_data):
 
     return query_rows, query_cols, query_data
 
-def leverage_online(estimator, query_batch, is_sym):
+def leverage_online(estimator, query_batch, is_sym, guide_data, guide_val):
     pred, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -171,7 +171,7 @@ def leverage_online(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def leverage_observed(estimator, query_batch, is_sym):
+def leverage_observed(estimator, query_batch, is_sym, guide_data, guide_val):
     _, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
@@ -194,7 +194,7 @@ def leverage_observed(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def max_guided_density(estimator, query_batch, is_sym, guide_data):
+def max_guided_density(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Load guide df
     guide_df = estimator.guide_df
@@ -223,7 +223,7 @@ def max_guided_density(estimator, query_batch, is_sym, guide_data):
 
     return query_rows, query_cols, query_data
 
-def weighted_guided_density(estimator, query_batch, is_sym):
+def weighted_guided_density(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Load guide df
     guide_df = estimator.guide_df
@@ -246,7 +246,7 @@ def weighted_guided_density(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def max_guided_diversity(estimator, query_batch, is_sym):
+def max_guided_diversity(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Load guide df
     guide_df = estimator.guide_df
@@ -279,7 +279,7 @@ def max_guided_diversity(estimator, query_batch, is_sym):
         guide_values.append(sample_val)
 
         max_sim = np.maximum(guide_df['similarity'].values,
-                             all_pairwise_sim.iloc[:,filt_index].values)
+                             guide_data.iloc[:,filt_index].values)
 
         sorted_guide_df = sorted_guide_df\
         .assign(similarity=max_sim[sorted_guide_index])
@@ -296,7 +296,7 @@ def max_guided_diversity(estimator, query_batch, is_sym):
 
     return query_rows, query_cols, query_data
 
-def guided_exploration(estimator, query_batch, is_sym, guide_data):
+def guided_exploration(estimator, query_batch, is_sym, guide_data, guide_val):
 
     # Load guide df
     guide_df = estimator.guide_df
@@ -312,7 +312,7 @@ def guided_exploration(estimator, query_batch, is_sym, guide_data):
     sorted_guide_index = sorted_guide_df.index.values
 
     guide_size = guide_df.shape[0]
-    w = 10
+    w = guide_val
     quant = w/guide_size
 
     for i in range(query_batch):
