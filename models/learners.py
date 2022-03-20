@@ -1,4 +1,5 @@
 import numpy as np
+import itertools
 
 from typing import Callable, Optional, Tuple, List, Any
 
@@ -586,9 +587,10 @@ class ActiveCompletion(BaseTransformer):
         #Initialize list for storing metrics for each teaching iteration
         self.active_iter = 0 # Keep track of the number of active iterations
         self.teachlog = []
+        self.query_dict = {}
 
-        teachDict  = dict(self.estimator.train_dict)
-        self._teachLog(self.active_iter, 0, 0, np.nan, np.nan, np.nan, self.query_name,
+        teachDict  = self.estimator.train_dict
+        self._teachLog(self.active_iter, np.nan, np.nan, np.nan, np.nan, np.nan, self.query_name,
                            teachDict)
 
     def train(self, bootstrap: bool = False, only_new: bool = False, n_replicates=1,
@@ -641,12 +643,16 @@ class ActiveCompletion(BaseTransformer):
             self._fit_on_new(X, bootstrap=bootstrap, **fit_kwargs)
 
         # Log the newly fitted data points with the respective metrics
-        for i in range(batches):
-            teachDict  = dict(self.estimator.train_dict)
+        teachDict  = dict(**self.estimator.train_dict, **self.query_dict)
+        for i in range(batches)[:-1]:
             self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],self.query_name,
-                           teachDict)
+                         teach_dict=dict(zip(teachDict.keys(),itertools.repeat(np.nan))))
 
-    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict):
+        i = range(batches)[-1]
+        self._teachLog(self.active_iter, i, n_rep, X[i], X_row[i], X_col[i],self.query_name,
+                     teach_dict=teachDict)
+
+    def _teachLog(self, active_iter, batch, n_rep, X, X_row, X_col, query_name, teach_dict={}):
 
         teach_dict['active_iter'] = active_iter
         teach_dict['batch'] = batch
