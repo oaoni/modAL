@@ -135,7 +135,7 @@ def weighted_uncertainty(estimator, query_batch, is_sym, guide_data, guide_val):
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
-     
+    return query_rows, query_cols, query_data
 
 def random_query(estimator, query_batch, is_sym, guide_data, guide_val):
     _, std, coords = estimator.predict(return_std=True)
