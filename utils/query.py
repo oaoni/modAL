@@ -73,6 +73,8 @@ def policy_func(policy):
         return max_guided_diversity
     elif policy == 'guided_exploration':
         return guided_exploration
+    elif policy == 'global_recommendation':
+        return global_recommendation
 
 def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
     """
@@ -281,10 +283,12 @@ def max_guided_diversity(estimator, query_batch, is_sym, guide_data, guide_val):
         max_sim = np.maximum(guide_df['similarity'].values,
                              guide_data.iloc[:,filt_index].values)
 
-        sorted_guide_df = sorted_guide_df\
-        .assign(similarity=max_sim[sorted_guide_index])
         guide_df = guide_df\
         .assign(similarity=max_sim)
+        # sorted_guide_df = sorted_guide_df\
+        # .assign(similarity=max_sim[sorted_guide_index])
+        sorted_guide_df = sorted_guide_df\
+        .assign(similarity=guide_df['similarity'][sorted_guide_index])
 
     # Update guide df
     estimator.guide_df = guide_df
@@ -331,18 +335,36 @@ def guided_exploration(estimator, query_batch, is_sym, guide_data, guide_val):
         guide_values.append(sample_val)
 
         max_sim = np.maximum(guide_df['similarity'].values,
-                             guide_data.iloc[:,filt_index].values)
+                             guide_data.loc[:,filt_index].values)
 
-        sorted_guide_df = sorted_guide_df\
-        .assign(similarity=max_sim[sorted_guide_index])
+
         guide_df = guide_df\
         .assign(similarity=max_sim)
+        # sorted_guide_df = sorted_guide_df\
+        # .assign(similarity=max_sim[sorted_guide_index])
+        sorted_guide_df = sorted_guide_df\
+        .assign(similarity=guide_df['similarity'][sorted_guide_index])
+
 
     # Update guide df
     estimator.guide_df = guide_df
     estimator.query_dict['similarity'] = guide_df['similarity'].to_list()
 
     query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'max',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def global_recommendation(estimator, query_batch, is_sym, guide_data, guide_val):
+    pred, coords = estimator.predict(return_std=False)
+    pred_row,pred_col = zip(*coords)
+
+    X_test = estimator.X_testing.tocsc()
+    X_shape = X_test.shape
+
+    query_rows, query_cols = active_sample(np.abs(pred),pred_row,pred_col,
                                            X_shape,'max',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
