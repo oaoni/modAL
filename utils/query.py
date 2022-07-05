@@ -75,6 +75,8 @@ def policy_func(policy):
         return guided_exploration
     elif policy == 'global_recommendation':
         return global_recommendation
+    elif policy == 'max_unique_uncertainty':
+        return max_unique_uncertainty
 
 def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
     """
@@ -366,6 +368,40 @@ def global_recommendation(estimator, query_batch, is_sym, guide_data, guide_val)
 
     query_rows, query_cols = active_sample(np.abs(pred),pred_row,pred_col,
                                            X_shape,'max',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+def max_unique_uncertainty(estimator, query_batch, is_sym, guide_data, guide_val):
+
+    _, std, coords = estimator.predict(return_std=True)
+    pred_row,pred_col = zip(*coords)
+
+    X_test = estimator.X_testing.tocsc()
+    X_shape = X_test.shape
+
+    data_sparse = coo_matrix((std,(pred_row,pred_col)), shape=X_shape)
+    sort_inds = np.argsort(data_sparse.data)[::-1]
+
+    sort_rows = np.array(pred_row)[sort_inds]
+    sort_cols = np.array(pred_col)[sort_inds]
+
+    unique_id = []
+    query_rows = []
+    query_cols = []
+
+    for row,col in zip(sort_rows,sort_cols):
+
+        if (row in unique_id) or (col in unique_id):
+            pass
+        else:
+            query_rows += [row]
+            query_cols += [col]
+            unique_id += [row,col]
+
+            if len(query_rows) == query_batch:
+                break
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
