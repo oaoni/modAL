@@ -566,7 +566,7 @@ class BaseTransformer(ABC, BaseEstimator):
             self
         """
         if not bootstrap:
-            self.estimator.fit(self.X_training, self.X_testing, **fit_kwargs)
+            self.estimator.fit(self.X_training, X_test=self.X_testing, **fit_kwargs)
         else:
             n_instances = self.X_training.shape[0]
             bootstrap_idx = np.random.choice(range(n_instances), n_instances, replace=True)

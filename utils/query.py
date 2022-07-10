@@ -138,13 +138,13 @@ def weighted_uncertainty(estimator, query_batch, is_sym, guide_data, guide_val):
     return query_rows, query_cols, query_data
 
 def random_query(estimator, query_batch, is_sym, guide_data, guide_val):
-    _, std, coords = estimator.predict(return_std=True)
+    pred, std, coords = estimator.predict(return_std=True)
     pred_row,pred_col = zip(*coords)
 
     X_test = estimator.X_testing.tocsc()
     X_shape = X_test.shape
 
-    query_rows, query_cols = active_sample(X_test.data,pred_row,pred_col,
+    query_rows, query_cols = active_sample(pred,pred_row,pred_col,
                                            X_shape,'rand',query_batch, is_sym)
 
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
