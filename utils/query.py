@@ -7,6 +7,11 @@ import numpy as np
 import random
 from scipy.stats import entropy
 from scipy.linalg import svd
+import ray
+from tqdm import tqdm
+
+from sklearnBPMF.data.utils import upper_triangle
+from functools import partial
 
 # effective rank of matrix = entropy of singular value distribution
 # one heuristic for choosing number of components to keep
@@ -77,6 +82,8 @@ def policy_func(policy):
         return global_recommendation
     elif policy == 'max_unique_uncertainty':
         return max_unique_uncertainty
+    elif policy == 'max_stability':
+        return max_stability
 
 def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
     """
@@ -97,6 +104,8 @@ def active_sample(data,row_ind,col_ind,shape,policy,query_batch,is_sym=False):
 
     if policy == 'max':
         query_idx = np.argpartition(data_sparse.data, -query_batch)[-query_batch:]
+    elif policy == 'min':
+        query_idx = data_sparse.data.argsort()[:query_batch]
     elif policy == 'rand_prob':
         p = data_sparse.data/data_sparse.data.sum()
         query_idx = np.random.choice(len(p),size=query_batch,replace=False,p=p)
@@ -302,6 +311,75 @@ def max_guided_diversity(estimator, query_batch, is_sym, guide_data, guide_val):
     query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
 
     return query_rows, query_cols, query_data
+
+def func(x, A=None):
+
+    gene1 = x['level_0']
+    gene2 = x['level_1']
+
+    B = A.copy()
+    B.loc[gene1,gene2] = 1
+    B.loc[gene2,gene1] = 1
+
+    cond_n = np.linalg.cond(B)
+
+    return {'gene1':gene1,'gene2':gene2,'cond_number':cond_n}
+
+@ray.remote
+def func_ray(x,A):
+    return x.apply(partial(func,A=A),axis=1).tolist()
+
+def to_iterator(obj_ids):
+    while obj_ids:
+        done, obj_ids = ray.wait(obj_ids)
+        yield ray.get(done[0])
+
+def max_stability(estimator, query_batch, is_sym, guide_data, guide_val):
+
+    # Load guide df
+    guide_df = estimator.guide_df
+    X_test = estimator.X_testing.tocsc()
+    test_coords = list(zip(*estimator.X_testing.tocsc().nonzero()))
+    X_shape = X_test.shape
+
+    S_train = estimator.estimator.S_train
+    A = S_train + np.eye(S_train.shape[0])
+    upper = upper_triangle(A,k=1)
+    unobserved = (upper == 0).values
+    df = upper[unobserved].reset_index()
+
+    n_chunks = 50
+    chunks = np.array_split(df,n_chunks)
+
+    conds = []
+    futures = [func_ray.remote(i,A) for i in chunks]
+
+    for x in tqdm(to_iterator(futures), total=len(futures)):
+        conds += x
+
+    conds_df = pd.DataFrame(conds)
+    conds_df = conds_df.assign(cond_log=np.log(conds_df.cond_number.replace(np.inf,np.nan)))
+
+    # gene_conds = pd.merge(guide_df,conds_df,how='inner',on=['gene1','gene2'])
+
+    gene_conds = pd.concat([guide_df.set_index(['gene1','gene2']),
+                            conds_df.set_index(['gene1','gene2'])],axis=1,join='inner')
+
+    # Filter gene_conds df to only contain the present testing data[
+    filt_guide = gene_conds[gene_conds['coords'].isin(test_coords)]
+
+    guide_values = filt_guide['cond_log'].values
+    guide_row = filt_guide['row_coord'].values
+    guide_col = filt_guide['col_coord'].values
+
+    query_rows, query_cols = active_sample(guide_values,guide_row,guide_col,
+                                           X_shape,'min',query_batch, is_sym)
+
+    query_data = [X_test[row,col] for row,col in zip(query_rows, query_cols)]
+
+    return query_rows, query_cols, query_data
+
+
 
 def guided_exploration(estimator, query_batch, is_sym, guide_data, guide_val):
 
